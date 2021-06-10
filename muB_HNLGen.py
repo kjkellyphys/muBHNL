@@ -1,11 +1,8 @@
-import os
 import numpy as np
 from math import sin, cos, sqrt
 import vegas as vg
 import functools
 from scipy.optimize import minimize
-import itertools
-from multiprocessing import Pool, Value, Lock
 import sys
 
 #Coefficients of Lorentz-Invariant Objects given couplings gL and gR
@@ -56,6 +53,9 @@ def LIKins(varth, Ms, Pol):
 
     return [K1,K4,K5,K8,K9,K10]
 
+#Obtain the matrix-element-squared of the N decay
+#Requires the N/charged-lepton masses, gL and gR, N polarization, and whether it is Dirac or Majorana
+#varth is a vector of the final-state kinematic measurables (invariant masses and angles) in the N rest frame
 def MSqDM_VG(MsGsPolDM, varth):
     Ms, gLgR, pol, DM = MsGsPolDM
     if DM == 0:
@@ -73,10 +73,16 @@ def MSqDM_VG(MsGsPolDM, varth):
 #Polarization of a HNL N emerging from the two-body meson decay M -> l N.
 def NPol(mM, ml, mN):
     yl, yN = ml/mM, mN/mM
-    numterm = (yl**2 - yN**2)*np.sqrt(yN**4 + (1.0 -yl**2)**2 - 2.0*yN**2*(1.0+yl**2))
+    numterm = (yl**2 - yN**2)*sqrt(yN**4 + (1.0 -yl**2)**2 - 2.0*yN**2*(1.0+yl**2))
     denterm = yl**4 + yN**4 - 2.0*yl**2*yN**2 - yl**2 - yN**2
     return numterm/denterm
 
+#Returns a sample of N decay events in terms of the (reduced) invariant masses and rotation angles, as well as weights
+#Ms includes the N and daughter charged lepton masses
+#DecayInfo includes the parent meson mass and the charged lepton with which N is produced (two body decay Mes -> Lep + N)
+#gLgR includes couplings
+#DM is 0 for Dirac N, 1 for Majorana
+#If true, VB prints more information as this runs
 def RetSampDM(Ms, DecayInfo, gLgR, DM, VB):
     mN, mm, mp = Ms
     mMes, mLep = DecayInfo
@@ -85,7 +91,7 @@ def RetSampDM(Ms, DecayInfo, gLgR, DM, VB):
     DecPol = NPol(mMes, mLep, mN)
 
     integrand = vg.Integrator(igrange)
-    #resu = integrand(functools.partial(MSqDM_VG, [Ms,gLgR,DecPol,DM]), nitn=20, nstrat=[25,25,8,8])
+    #For more events to be generated, increase nitn. For more precision, increase the entries in nstrat
     resu = integrand(functools.partial(MSqDM_VG, [Ms,gLgR,DecPol,DM]), nitn=20, nstrat=[20,20,6,6])
 
     if VB:
@@ -98,7 +104,9 @@ def RetSampDM(Ms, DecayInfo, gLgR, DM, VB):
     if VB:
         print(integral)
 
-    for kc in range(30):
+    #For more events to be generated, increase NSamp
+    NSamp = 30
+    for kc in range(NSamp):
         if np.mod(kc, 10) == 0 and VB:
             print(kc)
         for x, wgt in integrand.random():
@@ -108,6 +116,8 @@ def RetSampDM(Ms, DecayInfo, gLgR, DM, VB):
 
     return pts
 
+
+#If weights are too cumbersome, this function returns a properly-weighted sample from Dist
 def GetPts(Dist, npts):
     ret = []
     MW = np.max(np.transpose(Dist)[4])
@@ -120,6 +130,7 @@ def GetPts(Dist, npts):
 
     return ret
 
+#Functions for defining the lab-frame N energy and the boost between rest/lab frames
 def ENLab(mK, mmu, mN):
     return (mK**2 - mmu**2 + mN**2)/(2.0*mK)
 def gN(mK, mmu, mN):
@@ -127,10 +138,12 @@ def gN(mK, mmu, mN):
     return EN0/mN
 def bN(mK, mmu, mN):
     gN0 = gN(mK, mmu, mN)
-    return np.sqrt(1.0 - 1.0/gN0**2)
+    return sqrt(1.0 - 1.0/gN0**2)
 def BoostMat(beta, gamma): #Boost in z-direction
     return [[gamma, 0, 0, beta*gamma], [0, 1, 0, 0], [0, 0, 1, 0], [beta*gamma, 0, 0, gamma]]
 
+#Given the parameters of the final-state (invariant masses and angles),
+#Determine the rest-frame four-vectors of the outgoing neutrino and charged-lepton pair
 def RF4vecs(kins, masses):
     zll, znum, ctll, gamll = kins
     mN, mm, mp = masses
@@ -145,11 +158,13 @@ def RF4vecs(kins, masses):
     stll = sqrt(1.0-ctll**2)
 
     pnuRF = [Enu, 0, -Enu*stll, -Enu*ctll]
-    pmRF = [Em, p3m*sqmnu*np.sin(gamll), -p3m*(cqmnu*stll + sqmnu*np.cos(gamll)*ctll), p3m*(sqmnu*np.cos(gamll)*stll - cqmnu*ctll)]
+    pmRF = [Em, p3m*sqmnu*sin(gamll), -p3m*(cqmnu*stll + sqmnu*cos(gamll)*ctll), p3m*(sqmnu*cos(gamll)*stll - cqmnu*ctll)]
     ppRF = [mN - pnuRF[0] - pmRF[0], -pnuRF[1] - pmRF[1], -pnuRF[2] - pmRF[2], -pnuRF[3] - pmRF[3]]
     
     return [pnuRF, pmRF, ppRF]
 
+#Take the rest-frame four-vectors and transform them into the lab frame
+#Returns the lab-frame charged lepton four-vectors
 def LFEvts(Dist, Masses, LFInfo):
     mN, mm, mp = Masses
     mK, mmu = LFInfo
@@ -163,32 +178,32 @@ def LFEvts(Dist, Masses, LFInfo):
         wgt = evt[-1]
         pmLF = np.dot(BM, RFp[1])
         ppLF = np.dot(BM, RFp[2])
-        #Em, Ep = pmLF[0], ppLF[0]            
-        #ctpppm = np.dot(pmLF[1:], ppLF[1:])/np.sqrt(np.dot(pmLF[1:], pmLF[1:])*np.dot(ppLF[1:], ppLF[1:]))
-        #ttpmz = np.sqrt(pmLF[1]**2 + pmLF[2])/pmLF[3]
-        #ttppz = np.sqrt(ppLF[1]**2 + ppLF[2])/ppLF[3]
         EsAngles.append([pmLF[0], pmLF[1], pmLF[2], pmLF[3], ppLF[0], ppLF[1], ppLF[2], ppLF[3], wgt])
-        #EsAngles.append([Em, Ep, ctpppm, ttpmz, ttppz, wgt])
     return EsAngles
 
+#Perform analyses on the lab-frame events.
+#Included: (cosine) of the opening angle between charged leptons
+#          (tangent) of the angle between the charged leptons and the incoming N direction (assumed to be the z-direction)
+#          Energies of each of the charged leptons
 def LFAnalysis(Evts):
     toret = []
     for evti, evt in enumerate(Evts):
         if evti % 10000 == 0:
             print([evti, len(Evts), evti/len(Evts)])
         pmE, pmX, pmY, pmZ, ppE, ppX, ppY, ppZ, wgt = evt
-        ctpppm = (pmX*ppX + pmY*ppY + pmZ*ppZ)/np.sqrt((pmX**2 + pmY**2 + pmZ**2)*(ppX**2 + ppY**2 + ppZ**2))
-        ttpmz = np.sqrt(pmX**2 + pmY**2)/pmZ
-        ttppz = np.sqrt(ppX**2 + ppY**2)/ppZ
+        ctpppm = (pmX*ppX + pmY*ppY + pmZ*ppZ)/sqrt((pmX**2 + pmY**2 + pmZ**2)*(ppX**2 + ppY**2 + ppZ**2))
+        ttpmz = sqrt(pmX**2 + pmY**2)/pmZ
+        ttppz = sqrt(ppX**2 + ppY**2)/ppZ
         toret.append([pmE, ppE, ctpppm, ttpmz, ttppz, wgt])
     return toret
 
-EMin = 0.010
-OACut = 10*np.pi/180.0
+#Take the lab-frame information and perform some cuts:
+#Return the fraction of events that pass these cuts, as well as
+#Kinematics of Events Passing Cuts: Energies, Opening Angle, Leading Electron Angle
+EMin = 0.010 #Minimum electron/positron energy of 10 MeV
+OACut = 10*np.pi/180.0 #Minimum opening angle of electron/positron pair
 CTMax = np.cos(OACut)
 def CutAnalysis(Evts):
-    #Return Fraction of Events Passing Cuts
-    #Kinematics of Events Passing Cuts: Energies, Opening Angle, Leading Electron Angle
     toret = []
     for evti, evt in enumerate(Evts):
         if evti % 10000 == 0:
