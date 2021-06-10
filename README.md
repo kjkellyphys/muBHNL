@@ -3,7 +3,7 @@ Python-based simulation code for the three-body decay of a heavy neutral lepton 
 
 Also included: code for simulating two-body decays of Higgs-Portal Scalars (HPS), for comparison against MicroBooNE's analysis of this model.
 
-Requirements:
+##Requirements:
 
 -- numpy
 
@@ -12,7 +12,7 @@ Requirements:
 -- functools
 
 
-Code Included:
+##Code Included:
 
 "HNLGen.py" -- Code for generating a sample of events in an HNL rest-frame
 
@@ -22,7 +22,7 @@ Code Included:
 
 "LabFrame.py" -- Functions for transforming a distribution of events between rest-frame and lab-frame (both HNL and HPS).
 
-Sample Scripts:
+##Sample Scripts:
 
 "Gen_HNLEvts.py" -- Code for generating a distribution of truth and reconstructed HNL events in the lab-frame, including performing some rudimentary analyses.
 
