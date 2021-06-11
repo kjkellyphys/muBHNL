@@ -42,3 +42,8 @@ Also included: code for simulating two-body decays of Higgs-Portal Scalars (HPS)
 -- Code for scanning over a range of HNL masses to determine the average lab-frame opening angles of electron/positron pairs, as well as the fraction that pass different cuts.
 
 -- Usage: "python3 Scan_HNLEvts_AvgCT.py DM filename" -- DM is Dirac (0) vs. Majorana (1) HNL decay, filename is the root of the text files to be saved using this script.
+
+### "Scan_HPSEvts_AvgCT.py"
+-- Code for scanning over a range of HPS masses to determine the average lab-frame opening angles of electron/positron pairs, as well as the fraction that pass different cuts.
+
+-- Usage: "python3 Scan_HPSEvts_AvgCT.py filename" -- filename is the root of the text files to be saved using this script.
