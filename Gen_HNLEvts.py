@@ -18,6 +18,17 @@ Saves two files:
 --Can change cuts on final-state particles (energy of e+ and e-, opening angle) with "EMinT" and "OACutT"
 '''
 
+#Check input arguments
+args = sys.argv
+if len(args) != 4:
+    print("Error: 3 command-line arguments expected (m_N, DM, filename)")
+    print("Using default options instead.")
+    mNT, DMT, fnameSave0 = 0.050, 1, "TestHNLEvts_"
+else:
+    mNT = float(args[1]) #mNT is the HNL mass (GeV)
+    DMT = int(args[2]) #Dirac(0) or Majorana(1) HNL
+    fnamesave0 = str(args[3]) #base filename for saving outputs
+
 sw2 = 0.223
 mKT, mmuT, meT = 0.493677, 0.105658, 0.000511
 
@@ -26,8 +37,6 @@ mKT, mmuT, meT = 0.493677, 0.105658, 0.000511
 #If interested in electron-mixing-only, gL changes to 0.5*(1.0 + 2.0*sw2), gR is unchanged
 gLgRTrue = [0.5*(1.0 - 2.0*sw2), sw2]
 
-mNT = float(sys.argv[1]) #user-input mass in GeV for HNL Mass
-DMT = int(sys.argv[2]) #user-input choice: Dirac (0) or Majorana (1) HNL
 Dist0 = HNLGen.RetSampDM([mNT, meT, meT], [mKT, mmuT], gLgRTrue, 1, True, True) #Generate sample of events
 LF = LabFrame.LFEvts(Dist0, [mNT, meT, meT], [mKT, mmuT])
 
@@ -42,6 +51,5 @@ CutResults = LabFrame.CutAnalysis(Analysis, EMinT, OACutT)
 CutResultsS = LabFrame.CutAnalysis(AnalysisS, EMinT, OACutT)
 
 PC, PCS = CutResults[1], CutResultsS[1]
-fnameSave0 = str(sys.argv[3])
 np.save(fnameSave0+"Truth", PC)
 np.save(fnameSave0+"Reco", PCS)

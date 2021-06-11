@@ -17,6 +17,16 @@ Scans over the masses of HNL given in "muBMasses" (from the MicroBooNE HPS analy
 --Can change cuts on final-state particles (energy of e+ and e-, opening angle) with "EMinT" and "OACutT"
 '''
 
+#Check input arguments
+args = sys.argv
+if len(args) != 3:
+    print("Error: 2 command-line arguments expected (DM, filename)")
+    print("Using default options instead.")
+    DMT, fnameSave0 = 1, "TestHNLScan"
+else:
+    DMT = int(args[1]) #Dirac(0) or Majorana(1) HNL
+    fnamesave0 = str(args[2]) #base filename for saving outputs
+
 sw2 = 0.223
 mKT, mmuT, meT = 0.493677, 0.105658, 0.000511
 
@@ -25,7 +35,6 @@ mKT, mmuT, meT = 0.493677, 0.105658, 0.000511
 #If interested in electron-mixing-only, gL changes to 0.5*(1.0 + 2.0*sw2), gR is unchanged
 gLgRTrue = [0.5*(1.0 - 2.0*sw2), sw2]
 
-DMT = int(sys.argv[1]) #user-input choice: Dirac (0) or Majorana (1) HNL
 EMinT, OACutT = 0.010, 10.0 #Minimum visible energy (10 MeV) and opening angle (10 degrees) for identification
 DetAngUncert = 3.0 #Angular uncertainty for electron tracks
 
@@ -54,6 +63,5 @@ for mmi in range(len(muBMasses)):
     mean = np.average(np.transpose(PCS)[2], weights=np.transpose(PCS)[4])
     means.append([mNT, mean])
 
-fnameSave0 = str(sys.argv[2])
 np.savetxt(fnameSave0+"_CutPassFraction.dat", cutpassfracs)
 np.savetxt(fnameSave0+"_AvgCosTh.dat", means)
